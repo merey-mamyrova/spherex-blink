@@ -1,0 +1,4 @@
+{
+  "rewrites": [{ "source": "/irsa/:path*", "destination": "/api/irsa?path=:path*" }],
+  "functions": { "api/irsa.js": { "maxDuration": 60 } }
+}
