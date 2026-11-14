@@ -90,6 +90,7 @@ function frame(){const R=S.R;if(!R)return;const a=current(),st=stretchOf(R,S.det
   if(pts.length>1){ctx.strokeStyle="#5eead4";ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke()}
   for(const p of pts){ctx.fillStyle=p[2]==S.e?"#fff":"#5eead4";ctx.fillRect(p[0]-3,p[1]-3,6,6)}
   const[E,No]=posAt(S.e),[x,y]=xy(E,No);ctx.strokeStyle="#fff";ctx.beginPath();ctx.arc(x,y,9/R.scale*cv.width/R.N,0,7);ctx.stroke()}
+ drawCats();drawCands();drawMarks();ctx.lineWidth=1.5;ctx.font="12px ui-monospace,Menlo,monospace";
  const L=60/R.scale*cv.width/R.N;ctx.strokeStyle="#fff";ctx.fillStyle="#fff";ctx.beginPath();ctx.moveTo(16,cv.width-18);ctx.lineTo(16+L,cv.width-18);ctx.stroke();ctx.fillText("1′",16,cv.width-26);
  ctx.fillText("С",cv.width-28,24);ctx.fillText("В",cv.width-62,52);ctx.beginPath();ctx.moveTo(cv.width-24,48);ctx.lineTo(cv.width-24,28);ctx.moveTo(cv.width-24,48);ctx.lineTo(cv.width-48,48);ctx.stroke();
  const e=R.epochs[S.e];$("date").textContent=S.mode=="sum"?"все эпохи":fmtD(e.mjd)+" · "+(S.e+1)+"/"+R.epochs.length;$("ep").value=S.e;
@@ -159,7 +160,7 @@ function show(R,pre,live){S.R=R;S.pre=pre;S.live=live;S.e=0;
  $("ep").max=R.epochs.length-1;busy(null);
  $("note").innerHTML=pre?pre.note:"Произвольный участок неба: RA "+R.ra.toFixed(4)+"°, Dec "+R.dec.toFixed(4)+"°. Нажмите на любой объект, чтобы проверить, движется ли он.";
  document.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",pre&&c.dataset.k==pre.k));
- select(R.track[0].E,R.track[0].No,true);frame();url()}
+ onField(R,pre);select(R.track[0].E,R.track[0].No,true);frame();url()}
 async function go(ra,dec,forceLive){const pre=findPreset(ra,dec);
  if(pre&&!forceLive){busy("Загрузка сохранённых данных…");try{const R=await loadPreset(pre);if(!qs.get("det")||go.used||pre.follow)S.det=pre.det;go.used=1;show(R,pre,false);return}catch(e){}}
  const fov=+$("fov").value;busy("Ищу снимки SPHEREx в архиве IRSA…","Архив NASA отвечает не быстро: запрос списка занимает до минуты.",.02);
@@ -184,7 +185,7 @@ $("fps").oninput=e=>{S.fps=+e.target.value;timer()};
 ["trk","cat","smooth"].forEach(i=>$(i).onchange=frame);
 $("play").onclick=()=>{S.play=!S.play;timer()};
 $("ep").oninput=e=>{S.play=false;S.e=+e.target.value;timer();frame();charts()};
-cv.onclick=ev=>{const R=S.R;if(!R)return;const r=cv.getBoundingClientRect(),px=(ev.clientX-r.left)/r.width*R.N,py=(ev.clientY-r.top)/r.height*R.N;select((R.N/2-px)*R.scale,(R.N/2-py)*R.scale,false);frame()};
+cv.onclick=ev=>{const R=S.R;if(!R)return;const r=cv.getBoundingClientRect(),px=(ev.clientX-r.left)/r.width*R.N,py=(ev.clientY-r.top)/r.height*R.N;if(X.markMode){addMark((R.N/2-px)*R.scale,(R.N/2-py)*R.scale);return}select((R.N/2-px)*R.scale,(R.N/2-py)*R.scale,false);frame()};
 let tm;function timer(){clearInterval(tm);$("fpsv").textContent=S.fps+" кадр/с";$("play").textContent=S.play?"Пауза":"Играть";
  if(S.play)tm=setInterval(()=>{const R=S.R;if(!R||S.mode=="sum"||document.hidden)return;const n=R.epochs.length,lo=S.mode=="diff"&&n>1?1:0;S.e=S.e+1>=n?lo:S.e+1;frame();charts()},1000/S.fps)}
 addEventListener("resize",()=>S.R&&charts());
@@ -316,6 +317,138 @@ async function initVisuals(){initScroll();
  buildCards()}
 
 
+/* ================= catalogs, auto-search, markers, beginner guide ================= */
+const X={cat:null,catKey:null,cands:null,candDet:0,marks:[],markMode:false,mid:0};
+const D2R_=Math.PI/180;
+function radec(E,No){const R=S.R;return[(R.ra+E/3600/Math.cos(R.dec*D2R_)+360)%360,R.dec+No/3600]}
+function offs(ra,dec){const R=S.R;let d=ra-R.ra;if(d>180)d-=360;if(d<-180)d+=360;return[d*Math.cos(R.dec*D2R_)*3600,(dec-R.dec)*3600]}
+function fmtRA(ra){const h=((ra/15)%24+24)%24,H=Math.floor(h),m=(h-H)*60,M=Math.floor(m),s=(m-M)*60;return String(H).padStart(2,"0")+"h"+String(M).padStart(2,"0")+"m"+s.toFixed(1).padStart(4,"0")+"s"}
+function fmtDec(d){const g=d<0?"−":"+";d=Math.abs(d);const D=Math.floor(d),m=(d-D)*60,M=Math.floor(m),s=Math.min(59,Math.round((m-M)*60));return g+String(D).padStart(2,"0")+"°"+String(M).padStart(2,"0")+"′"+String(s).padStart(2,"0")+"″"}
+
+/* ---------- Gaia DR3 + AllWISE (served by the same NASA archive, IRSA) ---------- */
+async function tapCSV(q){for(let a=0;a<3;a++){try{const r=await fetch(SPX.cfg.base+"/TAP/sync?FORMAT=CSV&QUERY="+encodeURIComponent(q));
+  if(r.ok)return(await r.text()).trim().split("\n").slice(1).map(l=>l.split(",").map(v=>v===""?null:+v))}catch(e){}await new Promise(r=>setTimeout(r,2500))}return null}
+async function liveCat(ra,dec,fov){const rad=(fov/60*.75).toFixed(4),c=`1=CONTAINS(POINT('ICRS',ra,dec),CIRCLE('ICRS',${ra},${dec},${rad}))`;
+ const[g,w]=await Promise.all([tapCSV(`SELECT ra,dec,pmra,pmdec,phot_g_mean_mag FROM gaia_dr3_source WHERE ${c} AND phot_g_mean_mag<20.5`),tapCSV(`SELECT ra,dec,w1mpro,w2mpro FROM allwise_p3as_psd WHERE ${c}`)]);
+ if(!g&&!w)return null;
+ return{gaia:(g||[]).map(r=>[r[0],r[1],r[2]||0,r[3]||0,r[4]]),wise:(w||[]).map(r=>[r[0],r[1],r[2],r[3]])}}
+function catNote(t){const el=$("catn");if(el)el.textContent=t}
+async function loadCat(R,pre){X.cat=null;const key=X.catKey=R.ra.toFixed(5)+","+R.dec.toFixed(5);let c=null;
+ if(pre){try{const r=await fetch("data/"+pre.k+"-cat.json");if(r.ok)c=await r.json()}catch(e){}}
+ if(!c){catNote("загружаю каталоги…");c=await liveCat(R.ra,R.dec,R.fov)}
+ if(key!==X.catKey)return;X.cat=c;
+ catNote(c?"Gaia: "+c.gaia.length+" · WISE: "+c.wise.length:"каталоги недоступны");
+ if(X.cands)renderCands();frame()}
+/* catalogue position at a given epoch (decimal year). Gaia DR3 reference epoch is 2016.0 */
+function gaiaAt(s,y){const[E,No]=offs(s[0],s[1]);return[E+s[2]/1000*(y-2016),No+s[3]/1000*(y-2016)]}
+/* a Gaia star counts as the same object only if it is close AND moves the same way */
+function gaiaMatch(E,No,y,rad,v){if(!X.cat)return null;let b=null,bd=rad;for(const s of X.cat.gaia){const[e,n]=gaiaAt(s,y),d=Math.hypot(e-E,n-No);
+  if(d>=bd)continue;if(v!=null){const pm=Math.hypot(s[2],s[3])/1000;if(Math.abs(pm-v)>Math.max(2,.35*v))continue}bd=d;b=s}return b}
+function drawCats(){if(!X.cat||!S.R)return;const y=yr(S.R.epochs[S.e].mjd),w=cv.width;ctx.lineWidth=1;
+ if($("ovg").checked){ctx.strokeStyle="rgba(124,196,255,.75)";const gl=X.cat.gaia.length>300?17.5:20.5;for(const s of X.cat.gaia){if(s[4]>gl)continue;const[x,yy]=xy(...gaiaAt(s,y));if(x<-10||yy<-10||x>w+10||yy>w+10)continue;
+   const r=s[4]<12?9:s[4]<16?7:5;ctx.beginPath();ctx.arc(x,yy,r,0,7);ctx.stroke()}}
+ if($("ovw").checked){ctx.strokeStyle="rgba(232,121,249,.8)";for(const s of X.cat.wise){const[x,yy]=xy(...offs(s[0],s[1]));if(x<-10||yy<-10||x>w+10||yy>w+10)continue;ctx.strokeRect(x-5,yy-5,10,10)}}}
+
+/* ---------- automatic search for moving objects ----------
+   1) find every source above 8σ in the first and last pass;
+   2) follow each one through all passes (centroid within 7″ of its previous position);
+   3) remove the common drift of the whole field, estimate the noise from all stars;
+   4) report sources whose shift is well above that noise and fits a straight line. */
+function bestDet(){const R=S.R;let b=6,bn=-1;for(let d=1;d<=6;d++){const n=R.epochs.filter((_,k)=>R.stacks[d+"-"+k]).length;if(n>bn||(n==bn&&d>b)){bn=n;b=d}}return b}
+function peaks(s,sig,margin){const N=s.N,a=s.data,out=[];for(let j=margin;j<N-margin;j++)for(let i=margin;i<N-margin;i++){const v=a[j*N+i];if(v<sig*s.noise)continue;let m=true;
+  for(let dj=-2;dj<=2&&m;dj++)for(let di=-2;di<=2;di++){if((di||dj)&&a[(j+dj)*N+i+di]>v){m=false;break}}if(m)out.push([i,j,v])}return out.sort((p,q)=>q[2]-p[2]).slice(0,250)}
+function autoSearch(){const R=S.R;if(!R)return;const det=S.det||bestDet(),sc=R.scale,N=R.N,ks=R.epochs.map((_,k)=>k).filter(k=>R.stacks[det+"-"+k]);
+ X.candDet=det;if(ks.length<2){X.cands=[];X.autoMsg="Для поиска нужны снимки хотя бы двух проходов на детекторе "+det+".";renderCands();return}
+ const yrs=ks.map(k=>yr(R.epochs[k].mjd)),seeds=[];
+ for(const k of [ks[0],ks[ks.length-1]])for(const[i,j]of peaks(R.stacks[det+"-"+k],8,6))seeds.push([(N/2-(i+.5))*sc,(N/2-(j+.5))*sc,k]);
+ const src=[];
+ for(const[E0,N0,k0]of seeds){const i0=ks.indexOf(k0),pts=new Array(ks.length).fill(null);const at=(i,e,n)=>{const c=SPX.centroid(R.stacks[det+"-"+ks[i]],e,n,7,sc);return c&&c.snr>=6?c:null};
+  const c0=at(i0,E0,N0);if(!c0)continue;pts[i0]=c0;
+  for(let i=i0+1,p=c0;i<ks.length;i++){const c=at(i,p.E,p.No);pts[i]=c;if(c)p=c}
+  for(let i=i0-1,p=c0;i>=0;i--){const c=at(i,p.E,p.No);pts[i]=c;if(c)p=c}
+  const ok=pts.map((p,i)=>p?{i,E:p.E,No:p.No,snr:p.snr,y:yrs[i]}:null).filter(Boolean);if(ok.length<2)continue;
+  const a=ok[0],b=ok[ok.length-1],dt=b.y-a.y;if(dt<.2)continue;
+  if(ks.some(k=>satAt(R,[det],k,b.E,b.No)))continue;
+  if(src.some(s=>Math.hypot(s.b.E-b.E,s.b.No-b.No)<3))continue;
+  let lin=0;for(const p of ok){const t=(p.y-a.y)/dt;lin=Math.max(lin,Math.hypot(p.E-(a.E+(b.E-a.E)*t),p.No-(a.No+(b.No-a.No)*t)))}
+  src.push({a,b,ok,vE:(b.E-a.E)/dt,vN:(b.No-a.No)/dt,snr:Math.min(...ok.map(p=>p.snr)),lin,n:ok.length})}
+ if(src.length<3){X.cands=[];X.autoMsg="В поле слишком мало ярких источников для поиска.";renderCands();return}
+ const mE=SPX.median(src.map(s=>s.vE)),mN=SPX.median(src.map(s=>s.vN));
+ for(const s of src){s.vE-=mE;s.vN-=mN;s.v=Math.hypot(s.vE,s.vN)}
+ const sig=Math.max(.25,1.4826*SPX.median(src.map(s=>s.v))/1.18),thr=Math.max(1.5,5*sig);
+ /* cross-check on the other detectors: a real mover moves on all of them; a blend that only shifts on one colour does not */
+ const ka=ks[0],kb=ks[ks.length-1];
+ for(const s of src){s.conf=0;s.contra=0;if(!(s.v>thr))continue;const ia=ks.indexOf(ka)>=0?s.ok[0]:null;
+  for(let d=1;d<=6;d++){if(d==det)continue;const A=R.stacks[d+"-"+ka],B=R.stacks[d+"-"+kb];if(!A||!B)continue;
+   const c1=SPX.centroid(A,s.a.E,s.a.No,5,sc),c2=SPX.centroid(B,s.b.E,s.b.No,5,sc);if(!c1||!c2||c1.snr<8||c2.snr<8)continue;
+   if(satAt(R,[d],ka,c1.E,c1.No)||satAt(R,[d],kb,c2.E,c2.No))continue;
+   const v2=Math.hypot((c2.E-c1.E)/(s.b.y-s.a.y)-mE,(c2.No-c1.No)/(s.b.y-s.a.y)-mN);
+   if(Math.abs(v2-s.v)<Math.max(1.5,.3*s.v))s.conf++;else if(v2<thr*.6)s.contra++}}
+ X.cands=src.filter(s=>s.v>thr&&s.snr>=8&&s.lin<2.5&&!(s.contra>s.conf&&s.n>2)).sort((p,q)=>(q.conf>0)-(p.conf>0)||q.v-p.v).slice(0,8);
+ X.autoMsg="Проверено источников: "+src.length+" · детектор "+det+" · проходов: "+ks.length+" · порог "+num(thr)+"″/год (шум поля "+num(sig,2)+"″/год).";
+ renderCands();frame()}
+function dirName(vE,vN){const a=Math.atan2(vE,vN)*180/Math.PI,n=["север","северо-восток","восток","юго-восток","юг","юго-запад","запад","северо-запад"];return n[Math.round(((a%360)+360)%360/45)%8]}
+function renderCands(){const el=$("cands");if(!el)return;$("autoNote").textContent=X.autoMsg||"";
+ if(!X.cands){el.innerHTML="";return}
+ if(!X.cands.length){el.innerHTML='<li class="none">Движущихся объектов выше порога не найдено.</li>';return}
+ el.innerHTML=X.cands.map((c,i)=>{const y=c.b.y,g=gaiaMatch(c.b.E,c.b.No,y,4,c.v),known=g?`<span class="k ok">есть в Gaia · G ${num(g[4],1)} · ${num(Math.hypot(g[2],g[3])/1000)}″/год</span>`:(X.cat?'<span class="k new">нет в Gaia с таким движением — кандидат, нужна проверка</span>':"");
+  const[ra,dec]=radec(c.b.E,c.b.No);
+  return`<li data-i="${i}"><b class="n">${i+1}</b><div><div class="cv">${num(c.v)}″/год <small>на ${dirName(c.vE,c.vN)}</small></div><div class="cc">${fmtRA(ra)} ${fmtDec(dec)} · S/N ${Math.round(c.snr)} · ${c.conf?"подтверждено ещё на "+c.conf+" дет.":c.contra?"на других детекторах здесь неподвижная звезда: возможно наложение":"виден только на детекторе "+X.candDet}</div>${known}</div></li>`}).join("");
+ el.querySelectorAll("li[data-i]").forEach(li=>li.onclick=()=>{const c=X.cands[+li.dataset.i];S.play=false;timer();select(c.b.E,c.b.No,false);frame()})}
+function drawCands(){if(!X.cands||!X.cands.length||!$("ovc").checked)return;const R=S.R;ctx.lineWidth=2;ctx.font="600 13px ui-monospace,Menlo,monospace";
+ X.cands.forEach((c,i)=>{const[x0,y0]=xy(c.a.E,c.a.No),[x1,y1]=xy(c.b.E,c.b.No);ctx.strokeStyle="#ffb454";ctx.fillStyle="#ffb454";
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();const an=Math.atan2(y1-y0,x1-x0);
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x1-9*Math.cos(an-.45),y1-9*Math.sin(an-.45));ctx.lineTo(x1-9*Math.cos(an+.45),y1-9*Math.sin(an+.45));ctx.closePath();ctx.fill();
+  const t=yr(R.epochs[S.e].mjd),u=clamp((t-c.a.y)/(c.b.y-c.a.y),0,1),[cx,cy]=xy(c.a.E+(c.b.E-c.a.E)*u,c.a.No+(c.b.No-c.a.No)*u);
+  ctx.beginPath();ctx.arc(cx,cy,15,0,7);ctx.stroke();ctx.fillText(String(i+1),cx+18,cy-12)})}
+
+/* ---------- user markers ---------- */
+function drawMarks(){if(!X.marks.length)return;ctx.lineWidth=1.8;ctx.font="12px ui-monospace,Menlo,monospace";
+ for(const m of X.marks){const[x,y]=xy(m.E,m.No);ctx.strokeStyle="#5eead4";ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(x,y,m.r,0,7);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle="rgba(2,4,10,.75)";const w=ctx.measureText(m.name).width+10;ctx.fillRect(x+m.r+4,y-m.r-16,w,18);ctx.fillStyle="#5eead4";ctx.fillText(m.name,x+m.r+9,y-m.r-3)}}
+function renderMarks(){const el=$("marks");if(!el)return;
+ el.innerHTML=X.marks.length?X.marks.map((m,i)=>{const[ra,dec]=radec(m.E,m.No);return`<li><input value="${m.name.replace(/"/g,"&quot;")}" data-i="${i}" aria-label="Название метки"><span class="cc">${fmtRA(ra)} ${fmtDec(dec)}</span><button data-d="${i}" aria-label="Удалить метку">×</button></li>`}).join(""):'<li class="none">Меток пока нет.</li>';
+ el.querySelectorAll("input").forEach(inp=>inp.oninput=()=>{X.marks[+inp.dataset.i].name=inp.value||"без названия";frame()});
+ el.querySelectorAll("button[data-d]").forEach(b=>b.onclick=()=>{X.marks.splice(+b.dataset.d,1);renderMarks();frame()})}
+function setMarkMode(on){X.markMode=on;$("markBtn").classList.toggle("on",on);$("markBtn").textContent=on?"Нажмите на снимок…":"＋ Обвести объект";cv.style.cursor=on?"copy":"crosshair"}
+function addMark(E,No){const s=stk(S.e),c=s&&SPX.centroid(s,E,No,6,S.R.scale);if(c&&c.snr>=5){E=c.E;No=c.No}
+ X.marks.push({E,No,r:16,name:"Объект "+(++X.mid)});renderMarks();setMarkMode(false);frame()}
+
+/* ---------- beginner guide ---------- */
+const TOUR=[
+ {s:"#chips",t:"Начните с готовой цели",p:"Это пять объектов из задания NASA. Нажмите на любой — снимки уже загружены."},
+ {s:".view",t:"Настоящий снимок SPHEREx",p:"Каждый кадр — сложение нескольких снимков одного детектора за один проход телескопа. Север вверху, восток слева. Полоска внизу — 1 угловая минута."},
+ {s:".play",t:"Листайте проходы",p:"SPHEREx снимает небо раз в полгода. Кнопка «Играть» показывает проходы как видео: следите, что сдвигается."},
+ {s:"#det",t:"Выберите цвет",p:"Шесть детекторов видят разные длины волн. Холодные коричневые карлики ярче всего на детекторе 6, горячие звёзды — на 1–3."},
+ {s:"#mode",t:"Разность — главный приём",p:"В режиме «Разность» неподвижные звёзды исчезают, а движущийся объект оставляет пару голубое–янтарное."},
+ {s:"#autoPanel",t:"Автопоиск",p:"Сайт сам проверит все звёзды в поле и покажет те, что сдвинулись сильнее шума. Сверяем с каталогом Gaia: если объекта там нет — это кандидат."},
+ {s:".view",t:"Нажмите на любую звезду",p:"Сайт измерит её сдвиг, построит спектр и график яркости по проходам. Кнопкой «Обвести объект» можно поставить свою метку с названием."},
+ {s:"#form",t:"Любой участок неба",p:"Введите координаты — в градусах или как 08h55m10.8s −07d14m42s. Ссылку с координатами можно отправить друзьям или встроить на сайт."}];
+let TI=-1;
+function tourShow(i){TI=i;const st=TOUR[i],el=document.querySelector(st.s),tour=$("tour");if(!el){tourEnd();return}
+ tour.classList.add("on");$("tourStep").textContent="Шаг "+(i+1)+" из "+TOUR.length;$("tourT").textContent=st.t;$("tourP").textContent=st.p;
+ $("tourBack").style.visibility=i?"visible":"hidden";$("tourNext").textContent=i==TOUR.length-1?"Начать":"Далее";
+ const r0=el.getBoundingClientRect();if(r0.top<70||r0.bottom>innerHeight-20){const y=scrollY+r0.top-Math.max(90,(innerHeight-Math.min(r0.height,innerHeight*.6))/2);if(lenis)lenis.scrollTo(y,{immediate:true});else scrollTo(0,y)}
+ requestAnimationFrame(tourPlace)}
+function tourPlace(){if(TI<0)return;const el=document.querySelector(TOUR[TI].s);if(!el)return;const r=el.getBoundingClientRect(),h=$("tourHole"),c=$("tourCard"),pad=8;
+ Object.assign(h.style,{left:r.left-pad+"px",top:r.top-pad+"px",width:r.width+2*pad+"px",height:Math.min(r.height,innerHeight-40)+2*pad+"px"});
+ const cw=Math.min(360,innerWidth-24),ch=c.offsetHeight||190;let x=r.right+20,y=r.top;
+ if(x+cw>innerWidth-12){x=Math.max(12,Math.min(r.left,innerWidth-cw-12));y=r.bottom+18;if(y+ch>innerHeight-12)y=Math.max(12,r.top-ch-18)}
+ y=clamp(y,12,innerHeight-ch-12);Object.assign(c.style,{left:x+"px",top:y+"px",width:cw+"px"})}
+function tourEnd(){TI=-1;$("tour").classList.remove("on");try{localStorage.setItem("spx_tour","1")}catch(e){}}
+function initTour(){$("tourNext").onclick=()=>TI<TOUR.length-1?tourShow(TI+1):tourEnd();$("tourBack").onclick=()=>TI>0&&tourShow(TI-1);$("tourSkip").onclick=tourEnd;
+ $("guideBtn").onclick=()=>tourShow(0);addEventListener("resize",tourPlace);addEventListener("scroll",()=>{if(TI>=0)requestAnimationFrame(tourPlace)},{passive:true});
+ addEventListener("keydown",e=>{if(TI<0)return;if(e.key=="Escape")tourEnd();if(e.key=="ArrowRight")$("tourNext").click();if(e.key=="ArrowLeft")$("tourBack").click()});
+ let seen=false;try{seen=!!localStorage.getItem("spx_tour")}catch(e){}
+ if(!seen&&!qs.get("embed")&&"IntersectionObserver" in window){const o=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)&&TI<0&&S.R){o.disconnect();setTimeout(()=>tourShow(0),700)}},{threshold:.45});o.observe(document.querySelector(".view"))}}
+
+/* ---------- wiring ---------- */
+function onField(R,pre){X.cands=null;X.autoMsg="";X.marks=[];X.mid=0;setMarkMode(false);renderCands();renderMarks();
+ $("aladin").href="https://aladin.cds.unistra.fr/AladinLite/?target="+encodeURIComponent(R.ra.toFixed(5)+" "+R.dec.toFixed(5))+"&fov="+(R.fov/60*1.2).toFixed(3)+"&survey=CDS%2FP%2FallWISE%2Fcolor";
+ loadCat(R,pre)}
+function initFeatures(){$("auto").onclick=()=>{$("auto").textContent="Ищу…";setTimeout(()=>{autoSearch();$("auto").textContent="Найти движущиеся объекты"},30)};
+ $("markBtn").onclick=()=>setMarkMode(!X.markMode);["ovg","ovw","ovc"].forEach(i=>$(i).onchange=frame);initTour()}
+
 /* ---------- rebuild the saved targets: open ?build=1 while server.py is running ---------- */
 async function buildAll(){for(const p of P){try{const R=await SPX.process(p.ra,p.dec,6,(d,t)=>busy("Обновляю «"+p.n+"»: "+d+" из "+t,"Пересборка сохранённых данных из IRSA. Не закрывайте вкладку.",d/t),null,p.follow?{det:p.follow,pm:p.pm}:null);
    const r=await fetch("save/"+p.k+".json",{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify(SPX.pack(R,{key:p.k}))});if(!r.ok)throw new Error("save "+r.status);delete pcache[p.k]}
@@ -327,7 +460,7 @@ async function buildAll(){for(const p of P){try{const R=await SPX.process(p.ra,p
  if(qs.get("embed"))document.body.classList.add("embed");
  const hasQ=qs.get("ra")!=null&&qs.get("dec")!=null;
  if(qs.get("det")!=null)S.det=+qs.get("det")||0;ds.value=S.det;if(qs.get("mode"))S.mode=qs.get("mode");$("mode").value=S.mode;if(qs.get("fov")){$("fov").value=qs.get("fov");$("fovv").textContent=$("fov").value+"′"}
- timer();
+ timer();initFeatures();
  if(qs.get("build")){document.body.classList.add("nostory");buildAll();return}
  if(!qs.get("embed"))initVisuals();
  if(hasQ){const ra=parseC(qs.get("ra"),false),dec=parseC(qs.get("dec"),false);if(!isNaN(ra)&&!isNaN(dec)){if(location.hash=="#tool")$("tool").scrollIntoView();await go(ra,dec);if(S.mode=="diff"&&S.R&&S.R.epochs.length>1){S.e=S.R.epochs.length-1;frame()}return}}

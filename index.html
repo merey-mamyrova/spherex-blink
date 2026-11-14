@@ -108,6 +108,7 @@
  <div class="sec-h rv">
   <div class="eyebrow">Инструмент</div>
   <h2>Любой участок неба</h2>
+  <button class="btn ghost sm guide" id="guideBtn" type="button">Гид для новичков</button>
   <p>Введите координаты. Сайт найдёт все снимки SPHEREx этой точки, совместит их и покажет по проходам телескопа. Нажмите на любой объект, чтобы измерить его сдвиг, спектр и яркость.</p>
  </div>
  <div class="wrap">
@@ -127,6 +128,9 @@
     <label><input type="checkbox" id="trk" checked>Трек объекта</label>
     <label><input type="checkbox" id="cat" checked>Положение по каталогу</label>
     <label><input type="checkbox" id="smooth">Сгладить пиксели</label>
+    <label><input type="checkbox" id="ovg" checked><i class="sw g"></i>Gaia DR3</label>
+    <label><input type="checkbox" id="ovw"><i class="sw w"></i>AllWISE</label>
+    <label><input type="checkbox" id="ovc" checked><i class="sw c"></i>Найденные</label>
    </div>
    <div class="panel glass">
     <h3 id="sph">Спектр выбранного объекта</h3>
@@ -160,9 +164,23 @@
     <p class="note" id="note"></p>
     <p class="move" id="move"></p>
    </div>
+   <div class="panel glass" id="autoPanel">
+    <h3>Автопоиск движущихся объектов</h3>
+    <p class="sub">Сайт сравнивает положения всех звёзд в поле между проходами и сверяет найденное с каталогом Gaia.</p>
+    <button class="btn pri sm" id="auto" type="button">Найти движущиеся объекты</button>
+    <p class="sub an" id="autoNote"></p>
+    <ol class="cands" id="cands"></ol>
+   </div>
+   <div class="panel glass">
+    <h3>Мои метки</h3>
+    <p class="sub">Обведите интересный объект и подпишите его. Координаты посчитаются сами.</p>
+    <button class="btn ghost sm" id="markBtn" type="button">＋ Обвести объект</button>
+    <ul class="marks" id="marks"></ul>
+   </div>
    <div class="panel glass">
     <h3>Кадр и качество данных</h3>
     <dl class="kv" id="meta"></dl>
+    <p class="sub catl">Каталоги поверх снимка: <span id="catn">…</span> · <a id="aladin" href="#" target="_blank" rel="noopener">открыть участок в Aladin ↗</a></p>
    </div>
   </div>
  </div>
@@ -173,6 +191,16 @@
  <p>Данные: NASA SPHEREx, архив NASA/IPAC Infrared Science Archive (IRSA). Каждый кадр — медиана снимков одного детектора за один проход телескопа; зодиакальный фон вычтен по модели из файла. Спектр — апертурная фотометрия без поправок, для быстрого просмотра. Ссылку на любой участок можно встроить: <code>?ra=…&amp;dec=…&amp;det=…&amp;embed=1</code></p>
  <p class="small">NASA Space Apps Challenge 2026</p>
 </footer>
+
+<div class="tour" id="tour" role="dialog" aria-label="Гид для новичков">
+ <div class="tour-hole" id="tourHole"></div>
+ <div class="tour-card glass" id="tourCard">
+  <div class="tour-step" id="tourStep"></div>
+  <h4 id="tourT"></h4>
+  <p id="tourP"></p>
+  <div class="tour-btns"><button class="lnk" id="tourSkip" type="button">Пропустить</button><span></span><button class="btn ghost sm" id="tourBack" type="button">Назад</button><button class="btn pri sm" id="tourNext" type="button">Далее</button></div>
+ </div>
+</div>
 
 <script src="vendor/lenis.min.js"></script>
 <script src="spx.js"></script>
