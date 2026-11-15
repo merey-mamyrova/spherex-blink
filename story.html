@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPHEREx Blink — небо, которое движется</title>
+<meta name="description" content="Инструмент для поиска движущихся объектов на снимках телескопа NASA SPHEREx. NASA Space Apps Challenge.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='6' fill='%23ffb454'/%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%237cc4ff' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+
+<div class="ticker" id="ticker"><div class="tick-label">Факты<i></i></div><div class="tick-win"><div class="tick-track" id="tickTrack"></div></div></div>
+
+<header class="nav">
+ <a class="brand" href="#top"><span class="mark"></span>SPHEREx <b>Blink</b></a>
+ <nav class="pill" aria-label="Разделы">
+  <a href="#story">Как это работает</a><a href="#results">Результаты</a><a href="#tool">Инструмент</a>
+ </nav>
+ <a class="cta" href="index.html">Открыть инструмент <span>→</span></a>
+</header>
+
+<!-- ============ HERO ============ -->
+<section id="top" class="hero">
+ <canvas id="hero" aria-hidden="true"></canvas>
+ <div class="hero-shade"></div>
+ <div class="hero-in">
+  <div class="status"><i></i><span>Данные NASA SPHEREx · архив IRSA · снимки по <span id="hdate">…</span></span></div>
+  <h1>Небо,<br><em>которое движется</em></h1>
+  <p class="lede">Телескоп SPHEREx снимает всё небо в 102 инфракрасных цветах дважды в год. Мы превращаем его снимки в видео, где ближайшие звёзды и коричневые карлики выдают себя движением.</p>
+  <div class="btns"><a class="btn pri" href="#story">Как это работает</a><a class="btn ghost" href="#tool">Искать самому</a></div>
+ </div>
+ <aside class="hero-card glass">
+  <div class="hc-top"><span>Цель на фоне</span><i class="live"></i></div>
+  <div class="hc-name">Звезда Барнарда</div>
+  <div class="hc-row"><span>Расстояние</span><b>6 св. лет</b></div>
+  <div class="hc-row"><span>Сдвиг по снимкам SPHEREx</span><b id="hspeed">…</b></div>
+  <div class="hc-row"><span>Снимков в обработке</span><b id="hframes">…</b></div>
+  <div class="hc-cap">Фон — настоящий кадр: ложные цвета из шести детекторов, от 0,75 (синий) до 5 мкм (красный)</div>
+ </aside>
+ <div class="stats">
+  <div><b>102</b><span>инфракрасных канала</span></div>
+  <div><b>6</b><span>детекторов</span></div>
+  <div><b id="snframes">1 317</b><span>снимков обработано</span></div>
+  <div><b>5 / 5</b><span>целей из задания</span></div>
+ </div>
+ <div class="cue" aria-hidden="true"><span>Листайте</span><i></i></div>
+</section>
+
+<!-- ============ SCROLL STORY ============ -->
+<section id="story">
+ <div class="stage">
+  <canvas id="sc" aria-hidden="true"></canvas>
+  <div class="shade"></div>
+  <svg class="co" aria-hidden="true"><line id="l1"/><line id="l2"/><line id="l3"/></svg>
+  <div class="lab" id="lab1"><span>звезда Барнарда</span>6 световых лет</div>
+  <div class="lab amber" id="lab2"></div>
+  <div class="lab amber" id="lab3"></div>
+
+  <div class="chaps">
+   <article class="chap" data-a="0" data-b=".30">
+    <div class="eyebrow">01 — Цвет</div>
+    <h2>102 цвета,<br>которых не видит глаз</h2>
+    <p>SPHEREx снимает небо в инфракрасном свете от 0,75 до 5 микрон. Листайте: этот участок неба проходит через все шесть детекторов. Горячие звёзды гаснут к длинным волнам, холодные объекты разгораются.</p>
+   </article>
+   <article class="chap" data-a=".30" data-b=".44">
+    <div class="eyebrow">02 — Приближение</div>
+    <h2>Звезда Барнарда</h2>
+    <p>Одна из ближайших к Солнцу звёзд. На снимке SPHEREx это пятно в несколько пикселей, каждый пиксель — 6 угловых секунд.</p>
+   </article>
+   <article class="chap" data-a=".44" data-b=".75">
+    <div class="eyebrow">03 — Время</div>
+    <h2>Что сдвинулось,<br>то рядом</h2>
+    <p>SPHEREx возвращается к каждой точке неба раз в полгода. Далёкие звёзды стоят на месте, а близкая уходит на север. Сайт измеряет этот сдвиг прямо по снимкам.</p>
+   </article>
+   <article class="chap" data-a=".75" data-b="1">
+    <div class="eyebrow">04 — Разность</div>
+    <h2>Вычтите одно небо из другого</h2>
+    <p>Неподвижное исчезает. Движущийся объект оставляет пару: голубой след там, откуда ушёл, и янтарный там, куда пришёл. Это тот же принцип, что у блинк-компаратора, которым в 1930 году нашли Плутон.</p>
+    <a class="btn pri" href="#results">Результаты по всем целям</a>
+   </article>
+  </div>
+
+  <div class="wbar" id="wbar">
+   <div class="wval" id="wval"></div>
+   <div class="wtrack"><i id="wdot"></i></div>
+   <div class="wlab"><span>0,75</span><span>1,1</span><span>1,6</span><span>2,4</span><span>3,8</span><span>4,4</span><span>5,0 мкм</span></div>
+  </div>
+  <div class="speed glass" id="speed"><span>Сдвиг, измеренный по снимкам</span><b id="spd">0,0″</b><small id="spdc"></small></div>
+  <div class="schip" id="sdate"></div>
+  <div class="sprog"><i id="sbar"></i></div>
+ </div>
+</section>
+
+<!-- ============ RESULTS ============ -->
+<section id="results" class="sec">
+ <div class="sec-h rv">
+  <div class="eyebrow">Проверка на задании</div>
+  <h2>Пять целей.<br>Все на настоящих снимках.</h2>
+  <p>Каждое число ниже сайт посчитал сам по кадрам SPHEREx: нашёл объект в каждом проходе телескопа и измерил, насколько он сдвинулся или изменил яркость. Каталог нужен только для сверки.</p>
+ </div>
+ <div class="cards" id="cards"></div>
+</section>
+
+<!-- ============ TOOL ============ -->
+<section id="tool" class="sec">
+ <div class="sec-h rv">
+  <div class="eyebrow">Инструмент</div>
+  <h2>Любой участок неба</h2>
+  <div class="tool-acts"><button class="btn ghost sm guide" id="guideBtn" type="button">Гид для новичков</button><span class="aihint"><b>✦</b> Дважды нажмите на любой элемент, и ИИ-помощник объяснит его</span></div>
+  <p>Введите координаты. Сайт найдёт все снимки SPHEREx этой точки, совместит их и покажет по проходам телескопа. Нажмите на любой объект, чтобы измерить его сдвиг, спектр и яркость.</p>
+ </div>
+ <div class="wrap">
+  <div class="col">
+   <div class="view glass">
+    <canvas id="cv" width="702" height="702"></canvas>
+    <div class="v3d" id="v3d"><span id="v3dmsg"></span><small class="v3dh">Тяните мышью, чтобы повернуть · двойной клик останавливает вращение</small></div>
+    <div class="vtog"><button id="b2d" class="on" type="button">2D</button><button id="b3d" type="button">3D 360°</button></div>
+    <div class="hud" id="hud"></div>
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="load" id="load"><div id="lmsg">Загрузка…</div><div class="pb"><i id="lbar"></i></div><small id="lsub"></small></div>
+   </div>
+   <div class="play glass">
+    <button class="btn sm" id="play">Пауза</button>
+    <input type="range" id="ep" min="0" max="2" value="0" aria-label="Проход телескопа">
+    <span class="date" id="date"></span>
+   </div>
+   <div class="tog">
+    <label><input type="checkbox" id="trk" checked>Трек объекта</label>
+    <label><input type="checkbox" id="cat" checked>Положение по каталогу</label>
+    <label><input type="checkbox" id="smooth">Сгладить пиксели</label>
+    <label><input type="checkbox" id="ovg" checked><i class="sw g"></i>Gaia DR3</label>
+    <label><input type="checkbox" id="ovw"><i class="sw w"></i>AllWISE</label>
+    <label><input type="checkbox" id="ovc" checked><i class="sw c"></i>Найденные</label>
+   </div>
+   <div class="panel glass">
+    <h3 id="sph">Спектр выбранного объекта</h3>
+    <p class="sub" id="sps"></p>
+    <div class="chart"><canvas id="sp"></canvas><div class="tip" id="spt"></div></div>
+    <div class="legend" id="spl"></div>
+    <button class="lnk" id="csv">Скачать точки спектра (CSV)</button>
+   </div>
+   <div class="panel glass">
+    <h3 id="lch">Яркость по проходам</h3>
+    <p class="sub" id="lcs"></p>
+    <div class="chart"><canvas id="lc"></canvas><div class="tip" id="lct"></div></div>
+   </div>
+  </div>
+  <div class="col">
+   <div class="panel glass">
+    <div class="chips" id="chips"></div>
+    <form class="form" id="form">
+     <label>Прямое восхождение<input type="text" id="ra" autocomplete="off" spellcheck="false"></label>
+     <label>Склонение<input type="text" id="dec" autocomplete="off" spellcheck="false"></label>
+     <button class="btn pri sm" type="submit">Показать</button>
+    </form>
+    <div class="ctl">
+     <label>Детектор (длина волны)<select id="det"></select></label>
+     <label>Режим<select id="mode"><option value="blink">Мигание проходов</option><option value="diff">Разность с первым проходом</option><option value="sum">Сумма всех проходов</option></select></label>
+     <label>Поле для нового запроса: <span id="fovv"></span><input type="range" id="fov" min="3" max="12" step="1" value="6"></label>
+     <label>Скорость: <span id="fpsv"></span><input type="range" id="fps" min="1" max="6" value="2"></label>
+    </div>
+   </div>
+   <div class="panel glass" id="passport"></div>
+   <div class="panel glass">
+    <p class="note" id="note"></p>
+    <p class="move" id="move"></p>
+   </div>
+   <div class="panel glass" id="autoPanel">
+    <h3>Автопоиск движущихся объектов</h3>
+    <p class="sub">Сайт сравнивает положения всех звёзд в поле между проходами и сверяет найденное с каталогом Gaia.</p>
+    <button class="btn pri sm" id="auto" type="button">Найти движущиеся объекты</button>
+    <p class="sub an" id="autoNote"></p>
+    <ol class="cands" id="cands"></ol>
+   </div>
+   <div class="panel glass">
+    <h3>Мои метки</h3>
+    <p class="sub">Обведите интересный объект и подпишите его. Координаты посчитаются сами.</p>
+    <button class="btn ghost sm" id="markBtn" type="button">＋ Обвести объект</button>
+    <ul class="marks" id="marks"></ul>
+   </div>
+   <div class="panel glass">
+    <h3>Кадр и качество данных</h3>
+    <dl class="kv" id="meta"></dl>
+    <p class="sub catl">Каталоги поверх снимка: <span id="catn">…</span> · <a id="aladin" href="#" target="_blank" rel="noopener">открыть участок в Aladin ↗</a></p>
+   </div>
+  </div>
+ </div>
+</section>
+
+<footer class="foot">
+ <div class="brand"><span class="mark"></span>SPHEREx <b>Blink</b></div>
+ <p>Данные: NASA SPHEREx, архив NASA/IPAC Infrared Science Archive (IRSA). Каждый кадр — медиана снимков одного детектора за один проход телескопа; зодиакальный фон вычтен по модели из файла. Спектр — апертурная фотометрия без поправок, для быстрого просмотра. Ссылку на любой участок можно встроить: <code>?ra=…&amp;dec=…&amp;det=…&amp;embed=1</code></p>
+ <p class="small">NASA Space Apps Challenge 2026</p>
+</footer>
+
+<div class="tour" id="tour" role="dialog" aria-label="Гид для новичков">
+ <div class="tour-hole" id="tourHole"></div>
+ <div class="tour-card glass" id="tourCard">
+  <div class="tour-step" id="tourStep"></div>
+  <h4 id="tourT"></h4>
+  <p id="tourP"></p>
+  <div class="tour-btns"><button class="lnk" id="tourSkip" type="button">Пропустить</button><span></span><button class="btn ghost sm" id="tourBack" type="button">Назад</button><button class="btn pri sm" id="tourNext" type="button">Далее</button></div>
+ </div>
+</div>
+
+<button class="aifab" id="aiFab" type="button"><b>✦</b> Спросить ИИ</button>
+<div class="ai glass" id="ai" role="dialog" aria-label="ИИ-помощник">
+ <div class="ai-h"><span><b>✦</b> Помощник · <em id="aiMode">справка</em></span><button id="aiX" type="button" aria-label="Закрыть">×</button></div>
+ <div class="ai-ctx" id="aiCtx"></div>
+ <p class="ai-t">Что вас интересует?</p>
+ <div class="ai-in"><input id="aiQ" type="text" placeholder="Например: почему эта звезда движется?" autocomplete="off"><button class="btn pri sm" id="aiGo" type="button">Спросить</button></div>
+ <div class="ai-ans" id="aiAns"></div>
+</div>
+
+<script type="module" src="view3d.js?v=4"></script>
+<script src="vendor/lenis.min.js"></script>
+<script src="spx.js?v=4"></script>
+<script src="app.js?v=4"></script>
+</body>
+</html>

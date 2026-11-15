@@ -18,7 +18,7 @@ const mjd2date=m=>new Date((m-40587)*864e5),fmtD=m=>mjd2date(m).toLocaleDateStri
 const num=(v,d=1)=>v.toFixed(d).replace(".",",");
 function parseC(s,isRA){s=String(s).trim();const q=(s.match(/\d+\.?\d*/g)||[]).map(Number);if(!q.length)return NaN;const neg=/^[\s]*[-−]/.test(s);
  if(q.length==1&&!/[hdms:°'" ]/i.test(s))return neg?-q[0]:q[0];
- let v=q[0]+(q[1]||0)/60+(q[2]||0)/3600;if(isRA&&!/[d°]/i.test(s))v*=15;return neg?-v:v}
+ let v=q[0]+(q[1]||0)/60+(q[2]||0)/3600;if(/\d\s*h/i.test(s)||(isRA&&!/[d°]/i.test(s)))v*=15;return neg?-v:v}
 const sepArcmin=(a,b,c,d)=>Math.hypot((a-c)*Math.cos(b*Math.PI/180),b-d)*60;
 
 /* ---------- images ---------- */
@@ -95,7 +95,7 @@ function frame(){const R=S.R;if(!R)return;const a=current(),st=stretchOf(R,S.det
  ctx.fillText("С",cv.width-28,24);ctx.fillText("В",cv.width-62,52);ctx.beginPath();ctx.moveTo(cv.width-24,48);ctx.lineTo(cv.width-24,28);ctx.moveTo(cv.width-24,48);ctx.lineTo(cv.width-48,48);ctx.stroke();
  const e=R.epochs[S.e];$("date").textContent=S.mode=="sum"?"все эпохи":fmtD(e.mjd)+" · "+(S.e+1)+"/"+R.epochs.length;$("ep").value=S.e;
  $("hud").textContent=(S.det?"детектор "+S.det+" · "+DETN[S.det]+" мкм":"все детекторы · 0,75–5,0 мкм")+(S.mode=="diff"?" · эпоха "+(S.e+1)+" минус эпоха 1":S.mode=="sum"?" · сумма эпох":"");
- meta()}
+ meta();syncDetSlider()}
 function meta(){const R=S.R,e=R.epochs[S.e],s=S.det?R.stacks[S.det+"-"+S.e]:null,rows=[];
  rows.push(["Эпоха",fmtD(e.mjd)+" (проход "+(S.e+1)+" из "+R.epochs.length+")"]);
  if(s){rows.push(["Снимков в кадре",s.n+" (медиана)"]);rows.push(["Длины волн",num(s.lam[0],2)+"–"+num(s.lam[1],2)+" мкм"]);rows.push(["Релиз данных",s.rel]);
@@ -302,7 +302,7 @@ function initScroll(){if(window.Lenis&&!matchMedia("(prefers-reduced-motion: red
   const raf=t=>{lenis.raf(t);requestAnimationFrame(raf)};requestAnimationFrame(raf)}
  document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener("click",e=>{const id=a.getAttribute("href").slice(1);if(document.getElementById(id)){e.preventDefault();goTo(id)}}));
  document.querySelectorAll(".rv").forEach(observe);
- const nav=document.querySelector(".nav");addEventListener("scroll",()=>nav.classList.toggle("solid",scrollY>40),{passive:true})}
+ const nav=document.querySelector(".nav");if(nav)addEventListener("scroll",()=>nav.classList.toggle("solid",scrollY>40),{passive:true})}
 async function initVisuals(){initScroll();
  try{const R=await loadPreset(P[0]);HR=SR=R;SM=storyPrep(R);heroDraw();storyRender();
   $("hspeed").textContent=num(SM.spd)+"″ в год";$("hframes").textContent=R.nFrames;$("hdate").textContent=fmtD(R.tLast)}
@@ -412,7 +412,7 @@ const TOUR=[
  {s:"#chips",t:"Начните с готовой цели",p:"Это пять объектов из задания NASA. Нажмите на любой — снимки уже загружены."},
  {s:".view",t:"Настоящий снимок SPHEREx",p:"Каждый кадр — сложение нескольких снимков одного детектора за один проход телескопа. Север вверху, восток слева. Полоска внизу — 1 угловая минута."},
  {s:".play",t:"Листайте проходы",p:"SPHEREx снимает небо раз в полгода. Кнопка «Играть» показывает проходы как видео: следите, что сдвигается."},
- {s:"#det",t:"Выберите цвет",p:"Шесть детекторов видят разные длины волн. Холодные коричневые карлики ярче всего на детекторе 6, горячие звёзды — на 1–3."},
+ {s:"#detBox, #det",t:"Выберите цвет",p:"Шесть детекторов видят разные длины волн. Холодные коричневые карлики ярче всего на детекторе 6, горячие звёзды — на 1–3."},
  {s:"#mode",t:"Разность — главный приём",p:"В режиме «Разность» неподвижные звёзды исчезают, а движущийся объект оставляет пару голубое–янтарное."},
  {s:"#autoPanel",t:"Автопоиск",p:"Сайт сам проверит все звёзды в поле и покажет те, что сдвинулись сильнее шума. Сверяем с каталогом Gaia: если объекта там нет — это кандидат."},
  {s:".view",t:"Нажмите на любую звезду",p:"Сайт измерит её сдвиг, построит спектр и график яркости по проходам. Кнопкой «Обвести объект» можно поставить свою метку с названием."},
@@ -525,7 +525,12 @@ const FACTS=[
  ["ε Индейца Ba и Bb весят 67 и 53 массы Юпитера и обходят друг друга за 11 лет","Википедия","https://en.wikipedia.org/wiki/Epsilon_Indi"],
  ["R Дракона меняет блеск от 6,7 до 13,2 величины за 246 дней","Википедия","https://en.wikipedia.org/wiki/Mira_variable"],
  ["RW Возничего — молодая звезда, около 3 млн лет, с пылевым диском","Википедия","https://en.wikipedia.org/wiki/RW_Aurigae"]];
-function initTicker(){const el=$("tickTrack");if(!el)return;const html=FACTS.map(f=>`<a href="${f[2]}" target="_blank" rel="noopener"><b>✦</b>${f[0]}<span>${f[1]}</span></a>`).join("");el.innerHTML=html+html}
+/* single-screen layout: one fact at a time, changes every 12 s, pauses on hover */
+function initFactPill(){const a=$("factTxt");if(!a)return;let i=0,t=12,hold=false;const all=FACTS.concat([["Наш сайт обработал 1 317 настоящих снимков SPHEREx для пяти целей задания","SPHEREx Blink","story.html"]]);
+ const show=()=>{const f=all[i%all.length];a.classList.add("fade");setTimeout(()=>{a.textContent="✦ "+f[0];a.href=f[2];$("factSrc").textContent=f[1];a.classList.remove("fade")},300);i++;t=12};
+ $("ticker").addEventListener("mouseenter",()=>hold=true);$("ticker").addEventListener("mouseleave",()=>hold=false);
+ show();setInterval(()=>{if(hold||document.hidden)return;t--;if(t<=0)show();$("factT").textContent=t},1000)}
+function initTicker(){initFactPill();const el=$("tickTrack");if(!el)return;const html=FACTS.map(f=>`<a href="${f[2]}" target="_blank" rel="noopener"><b>✦</b>${f[0]}<span>${f[1]}</span></a>`).join("");el.innerHTML=html+html}
 function tickerOwn(total){const el=$("tickTrack");if(!el||!total)return;const f=`<a href="#results"><b>✦</b>Наш сайт обработал ${total.toLocaleString("ru-RU")} настоящих снимков SPHEREx для пяти целей задания<span>SPHEREx Blink</span></a>`;
  const half=el.innerHTML.length/2;el.innerHTML=f+el.innerHTML.slice(0,half)+f+el.innerHTML.slice(half)}
 
@@ -585,7 +590,8 @@ function aiLocal(q){const st=pageState(),t=q.toLowerCase();let s="";
  else if(/темпер|холод|горяч/.test(t)&&st.паспорт)s=" Температура: "+st.паспорт.температура+".";
  else if(/спектр|молекул|вод|метан/.test(t)&&S.specBins&&S.specBins.length){const pk=S.specBins.reduce((a,b)=>b.m>a.m?b:a);s=" Ярче всего объект на "+num(pk.l,2)+" мкм."}
  return s?"<br><br>"+s.trim():""}
-function initAI(){document.addEventListener("dblclick",e=>{const t=e.target;if(t.closest("#ai,input,textarea,select,.tour,#v3d"))return;try{getSelection().removeAllRanges()}catch(_){}
+function syncDetSlider(){const r=$("detR");if(!r)return;r.value=S.det||7;$("detLbl").textContent=S.det?"детектор "+S.det+" · "+DETN[S.det]+" мкм":"все детекторы · 0,75–5,0 мкм"}
+function initAI(){const dr=$("detR");if(dr)dr.oninput=()=>{const v=+dr.value;$("det").value=v==7?0:v;$("det").onchange()};document.addEventListener("dblclick",e=>{const t=e.target;if(t.closest("#ai,input,textarea,select,.tour,#v3d"))return;try{getSelection().removeAllRanges()}catch(_){}
   aiOpen(t,e.clientX,e.clientY)});
  $("aiX").onclick=aiClose;$("aiGo").onclick=aiAsk;$("aiQ").addEventListener("keydown",e=>{if(e.key=="Enter")aiAsk();if(e.key=="Escape")aiClose()});
  $("aiFab").onclick=e=>aiOpen(document.querySelector(".view")||document.body,innerWidth-420,innerHeight-360);
@@ -604,6 +610,6 @@ async function buildAll(){for(const p of P){try{const R=await SPX.process(p.ra,p
  if(qs.get("det")!=null)S.det=+qs.get("det")||0;ds.value=S.det;if(qs.get("mode"))S.mode=qs.get("mode");$("mode").value=S.mode;if(qs.get("fov")){$("fov").value=qs.get("fov");$("fovv").textContent=$("fov").value+"′"}
  timer();initFeatures();initAI();
  if(qs.get("build")){document.body.classList.add("nostory");buildAll();return}
- if(!qs.get("embed"))initVisuals();
- if(hasQ){const ra=parseC(qs.get("ra"),false),dec=parseC(qs.get("dec"),false);if(!isNaN(ra)&&!isNaN(dec)){if(location.hash=="#tool")$("tool").scrollIntoView();await go(ra,dec);if(S.mode=="diff"&&S.R&&S.R.epochs.length>1){S.e=S.R.epochs.length-1;frame()}return}}
+ if(!qs.get("embed")&&$("story"))initVisuals();
+ if(hasQ){const ra=parseC(qs.get("ra"),true),dec=parseC(qs.get("dec"),false);if(!isNaN(ra)&&!isNaN(dec)){if(location.hash=="#tool")$("tool").scrollIntoView();await go(ra,dec);if(S.mode=="diff"&&S.R&&S.R.epochs.length>1){S.e=S.R.epochs.length-1;frame()}return}}
  go(P[0].ra,P[0].dec)})();

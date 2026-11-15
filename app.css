@@ -1,0 +1,90 @@
+/* Single-screen app layout (main page). Builds on style.css. */
+body.appmode{
+ --bg:#060915;--panel:#0c1124;--panel2:#10162e;--line:rgba(124,131,255,.16);--line2:rgba(124,131,255,.34);
+ --ind:#6c6ff5;--ind2:#8b8ffb;--vio:#9b5cf6;
+ background:radial-gradient(900px 500px at 50% 45%,rgba(60,50,160,.16),transparent 70%),var(--bg);overflow:hidden}
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.app{height:100vh;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto;gap:10px;padding:12px 16px}
+
+/* top bar */
+.abar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 14px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,#0e1430,#0b1024)}
+.alogo{display:flex;align-items:center;gap:12px}
+.aicon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;color:#c9cbff;background:linear-gradient(135deg,#2a2d8a,#3b2a8f);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),0 0 24px rgba(108,111,245,.35)}
+.aicon svg{width:22px;height:22px}
+.alogo b{display:block;font:700 15px var(--disp);letter-spacing:.06em;text-transform:uppercase}
+.alogo small{display:block;color:var(--mut);font-size:12.5px;margin-top:2px}
+.aright{display:flex;gap:8px}
+.pillbtn{border:1px solid var(--line2);background:rgba(108,111,245,.08);color:var(--fg);border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer;transition:background .2s,border-color .2s}
+.pillbtn:hover{background:rgba(108,111,245,.2);border-color:var(--ind2)}
+
+/* targets row */
+.arow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.appmode .chips{margin:0}
+.appmode .chip{background:var(--panel);border-color:var(--line);padding:7px 14px}
+.appmode .chip.on{background:var(--ind);border-color:var(--ind);color:#fff;box-shadow:0 0 18px rgba(108,111,245,.5)}
+.aform{display:flex!important;gap:8px}
+.aform input{width:190px}
+
+/* auto fact */
+.afact{display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(90deg,rgba(108,111,245,.14),rgba(108,111,245,.04));font-size:14px;min-height:40px}
+.fi{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--ind2);color:var(--ind2);display:grid;place-items:center;font:600 12px var(--mono)}
+#factTxt{flex:1;color:var(--fg);transition:opacity .4s}
+#factTxt.fade{opacity:0}
+.fsrc{font:11px var(--mono);color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:2px 7px;white-space:nowrap}
+.fauto{font:11.5px var(--mono);color:var(--ind2);white-space:nowrap}.fauto i{font-style:normal}
+
+/* columns */
+.acols{display:grid;grid-template-columns:minmax(260px,330px) minmax(0,1fr) minmax(300px,380px);gap:14px;min-height:0}
+.acol{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:2px;scrollbar-width:thin;scrollbar-color:rgba(124,131,255,.3) transparent}
+.ahead{font:600 11.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ind2);padding:4px 4px 0}
+.appmode .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;flex:none}
+.appmode .panel h3{font:600 14.5px var(--sans);margin:0 0 6px}
+.appmode #passport h3{display:none}
+.appmode .pext{background:rgba(108,111,245,.08);border-color:rgba(108,111,245,.25)}
+.appmode .move{border-color:rgba(94,234,212,.3)}
+.explain{background:linear-gradient(180deg,rgba(255,180,84,.08),rgba(255,180,84,.02))!important;border-color:rgba(255,180,84,.25)!important}
+.explain h3{color:#ffd09a}
+.explain p{margin:0;font-size:13.5px;color:#d9dcef;line-height:1.55}
+.detrow{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--mut);margin-bottom:8px}
+.detrow b{font:500 13px var(--mono);color:var(--amber)}
+.detscale{display:flex;justify-content:space-between;font:10.5px var(--mono);color:var(--dim);margin-top:4px}
+#detR{accent-color:var(--amber)}
+details.panel summary{cursor:pointer;font:600 14.5px var(--sans);list-style:none}
+details.panel summary::-webkit-details-marker{display:none}
+details.panel summary::after{content:" ▾";color:var(--mut)}
+.appmode .chart canvas{height:180px}
+.appmode #sp{height:250px}
+
+/* centre */
+.acenter{min-height:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.appmode .view{position:relative;height:100%;max-height:100%;aspect-ratio:1;max-width:100%;border-radius:18px;border:1px solid var(--line);background:#02040a;
+ box-shadow:0 0 0 1px rgba(108,111,245,.06),0 30px 80px -30px rgba(60,50,200,.45);overflow:hidden;flex:1 1 auto;min-height:0}
+.appmode .view canvas#cv{width:100%;height:100%;display:block}
+.appmode .tog{justify-content:center;font-size:12.5px;gap:12px}
+
+/* bottom bar */
+.abottom{display:flex;align-items:center;gap:16px;padding:10px 14px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,#0e1430,#0b1024)}
+.abottom #play{min-width:96px;justify-content:center;background:var(--ind);border-color:var(--ind);color:#fff}
+.abottom #play:hover{box-shadow:0 0 24px rgba(108,111,245,.7)}
+.tl{flex:1;display:flex;align-items:center;gap:12px;min-width:200px}
+.tl input{flex:1;accent-color:var(--ind2)}
+.bsel{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mut);white-space:nowrap}
+.bsel select{width:auto;padding:6px 8px}
+.bsel input[type=range]{width:90px}
+.aibtn{border:0;border-radius:12px;padding:10px 18px;font-weight:600;font-size:14px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#a855f7);box-shadow:0 8px 30px -8px rgba(168,85,247,.7);transition:transform .2s}
+.aibtn:hover{transform:translateY(-1px)}.aibtn b{font-weight:400}
+.appmode .aifab{display:none}
+
+@media(max-width:1180px){
+ body.appmode{overflow:auto}.app{height:auto}
+ .acols{grid-template-columns:minmax(0,1fr)}.acenter{order:-1}.appmode .view{height:auto;width:min(100%,640px)}
+ .acol{overflow:visible}.abottom{flex-wrap:wrap;position:sticky;bottom:8px;z-index:20}.fovsel{display:none}
+ .aform input{width:140px}.alogo small{display:none}.fauto{display:none}
+}
+@media(max-width:700px){
+ .app{padding:10px;gap:8px}.abar{flex-wrap:wrap;padding:10px}.alogo b{font-size:13px}.aright{width:100%}.pillbtn{flex:1;text-align:center}
+ .arow{flex-direction:column;align-items:stretch}.aform{width:100%}.aform input{flex:1;min-width:0;width:auto}
+ .appmode .view{width:100%;height:auto}.afact{flex-wrap:wrap;font-size:13px}.fsrc{display:none}
+ .abottom{gap:10px}.tl{min-width:100%;order:-1}.bsel input[type=range]{width:70px}.aibtn{flex:1}
+ .appmode .tog{font-size:12px;gap:8px 12px}
+}
