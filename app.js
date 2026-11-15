@@ -80,7 +80,7 @@ function motion(){const R=S.R;S.sat=R.epochs.some((_,k)=>satNear(k));
 const cv=$("cv"),ctx=cv.getContext("2d");
 function xy(E,No){const R=S.R,z=cv.width/R.N;return[(R.N/2-E/R.scale)*z,(R.N/2-No/R.scale)*z]}
 function frame(){const R=S.R;if(!R)return;const a=current(),st=stretchOf(R,S.det);
- if(a)paint(ctx,a,R.N,st,{diff:S.mode=="diff",smooth:$("smooth").checked});else{ctx.fillStyle="#000";ctx.fillRect(0,0,cv.width,cv.width)}
+ if(a)paint(ctx,a,R.N,st,{diff:S.mode=="diff",smooth:$("smooth").checked});if(a)push3d(a,st);else{ctx.fillStyle="#000";ctx.fillRect(0,0,cv.width,cv.width)}
  ctx.lineWidth=1.5;ctx.font="12px ui-monospace,Menlo,monospace";
  if(!a){ctx.fillStyle="#8b94a9";ctx.fillText(S.mode=="diff"?"Для разности нужны две эпохи на этом детекторе":"На этом детекторе нет снимков за эту эпоху",20,cv.width/2)}
  if($("cat").checked&&S.pre&&Math.hypot(S.pre.pm[0],S.pre.pm[1])>.5){const p=S.pre;ctx.strokeStyle="#ffb454";ctx.fillStyle="#ffb454";ctx.setLineDash([4,4]);ctx.beginPath();
@@ -124,14 +124,7 @@ function specPoints(){const R=S.R;
 function charts(){const R=S.R;if(!R)return;
  /* spectrum */
  const sp=specPoints();SPEC=sp.pts;const[x,w,h]=setup($("sp"));
- const fs=SPEC.map(p=>p[3]).filter(v=>v>0).sort((a,b)=>a-b),ymax=niceMax(Math.max(fs.length?fs[Math.floor(fs.length*.97)]*1.2:1,.01)),ax=axes(x,w,h,ymax),X=l=>ax.L+(w-ax.L-ax.R)*((l-.7)/(5.1-.7));
- x.fillStyle="#5b6479";[1,2,3,4,5].forEach(l=>{x.textAlign="center";x.fillText(l+"",X(l),h-8)});x.textAlign="left";
- x.strokeStyle="rgba(140,170,255,.12)";[1.10,1.62,2.42,3.82,4.42].forEach(l=>{x.beginPath();x.moveTo(X(l)+.5,ax.T);x.lineTo(X(l)+.5,h-ax.B);x.stroke()});
- const one=S.mode=="sum";for(const pass of [0,1])for(const p of SPEC){const cur=one||p[0]==S.e;if(cur!=(pass==1))continue;p._x=X(p[2]);p._y=ax.Y(p[3]);x.beginPath();x.arc(p._x,p._y,cur?3.5:2.5,0,7);
-  const col=cur?"#3987d6":"#48506a";if(p[5]){x.strokeStyle=col;x.lineWidth=1.5;x.stroke()}else{x.fillStyle=col;x.fill()}}
- $("sph").textContent=sp.kind=="full"?"Спектр выбранного объекта (точек: "+SPEC.length+")":"Спектр выбранного объекта: по 6 детекторам";
- $("sps").textContent=sp.kind=="full"?"Поток (мЯн) по длине волны (мкм). Каждая точка — один снимок: объект попал на свою длину волны.":"Поток (мЯн) по длине волны (мкм). Грубая оценка по сложенным кадрам; полный спектр есть для центрального объекта и при живом запросе.";
- $("spl").innerHTML=(one?"<span><i style='background:#3987d6'></i>все эпохи</span>":"<span><i style='background:#3987d6'></i>эпоха на экране: "+fmtD(R.epochs[S.e].mjd)+"</span><span><i style='background:#48506a'></i>остальные эпохи</span>")+(SPEC.some(p=>p[5])?"<span><i class='h'></i>возможно насыщение</span>":"");
+ drawSpectrum(sp);
  /* light curve */
  LC=R.epochs.map((e,k)=>{const s=stk(k);if(!s)return null;const[E,No]=posAt(k),f=apFlux(s,E,No);return f==null?null:{k,f,mjd:e.mjd}}).filter(Boolean);
  const[y,w2,h2]=setup($("lc")),m2=niceMax(Math.max(...LC.map(p=>p.f),.01)*1.15),a2=axes(y,w2,h2,m2),n=R.epochs.length,X2=k=>a2.L+(w2-a2.L-a2.R)*(n>1?(k+.5)/n:.5);
@@ -297,7 +290,7 @@ async function buildCards(){const box=$("cards");if(!box)return;let total=0;
    <button class="rgo" type="button">Открыть в инструменте <span>→</span></button></div>`;
   box.appendChild(el);thumb(el.querySelector("canvas"),R,pre,m);
   el.querySelector(".rgo").onclick=()=>{goTo("tool");go.used=1;go(pre.ra,pre.dec)};observe(el)}
- if(total)$("snframes").textContent=total.toLocaleString("ru-RU")}
+ if(total){$("snframes").textContent=total.toLocaleString("ru-RU");tickerOwn(total)}}
 
 /* ---------- reveal on scroll, smooth scroll ---------- */
 const io="IntersectionObserver" in window?new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;e.target.classList.add("in");
@@ -443,11 +436,160 @@ function initTour(){$("tourNext").onclick=()=>TI<TOUR.length-1?tourShow(TI+1):to
  if(!seen&&!qs.get("embed")&&"IntersectionObserver" in window){const o=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)&&TI<0&&S.R){o.disconnect();setTimeout(()=>tourShow(0),700)}},{threshold:.45});o.observe(document.querySelector(".view"))}}
 
 /* ---------- wiring ---------- */
-function onField(R,pre){X.cands=null;X.autoMsg="";X.marks=[];X.mid=0;setMarkMode(false);renderCands();renderMarks();
+function onField(R,pre){renderPassport(pre);X.cands=null;X.autoMsg="";X.marks=[];X.mid=0;setMarkMode(false);renderCands();renderMarks();
  $("aladin").href="https://aladin.cds.unistra.fr/AladinLite/?target="+encodeURIComponent(R.ra.toFixed(5)+" "+R.dec.toFixed(5))+"&fov="+(R.fov/60*1.2).toFixed(3)+"&survey=CDS%2FP%2FallWISE%2Fcolor";
  loadCat(R,pre)}
 function initFeatures(){$("auto").onclick=()=>{$("auto").textContent="Ищу…";setTimeout(()=>{autoSearch();$("auto").textContent="Найти движущиеся объекты"},30)};
  $("markBtn").onclick=()=>setMarkMode(!X.markMode);["ovg","ovw","ovc"].forEach(i=>$(i).onchange=frame);initTour()}
+
+/* ================= clear spectrum ================= */
+const BANDS=[[.75,1.10,1],[1.10,1.62,2],[1.62,2.42,3],[2.42,3.82,4],[3.82,4.42,5],[4.42,5.0,6]];
+const BANDC={1:"124,160,255",2:"150,200,255",3:"230,235,255",4:"255,214,160",5:"255,166,110",6:"255,120,90"};
+/* absorption bands commonly seen in SPHEREx-range spectra of cool stars, brown dwarfs and ices */
+const FEAT=[[1.4,"H₂O",0],[1.65,"CH₄",1],[1.9,"H₂O",0],[2.3,"CO",1],[3.0,"лёд",0],[3.3,"CH₄",1],[4.27,"CO₂",0],[4.67,"CO",1]];
+function binSpec(pts){const g=new Map();for(const p of pts){if(!(p[3]>-1e9))continue;const b=Math.floor(Math.log(p[2]/.75)*40);(g.get(b)||g.set(b,[]).get(b)).push(p)}
+ const out=[];for(const[b,a]of[...g.entries()].sort((p,q)=>p[0]-q[0])){if(a.length<2)continue;const f=Float32Array.from(a.map(p=>p[3])).sort(),n=f.length,q=k=>f[Math.min(n-1,Math.max(0,Math.round(k*(n-1))))];
+  out.push({b,l:SPX.median(a.map(p=>p[2])),m:q(.5),lo:q(.25),hi:q(.75)})}return out}
+/* split the smoothed spectrum where there is no data, so the line never bridges a gap */
+function segs(bs){const out=[];let cur=[];for(const b of bs){if(cur.length&&b.b-cur[cur.length-1].b>3){out.push(cur);cur=[]}cur.push(b)}if(cur.length)out.push(cur);return out.filter(s=>s.length>1)}
+function drawSpectrum(sp){const R=S.R,c=$("sp");const[x,w,h]=setup(c),L=50,Rr=10,T=40,B=34,W=w-L-Rr,Hh=h-T-B;
+ const one=S.mode=="sum",cur=SPEC.filter(p=>one||p[0]==S.e),use=cur.length>=12?cur:SPEC;
+ const fs=use.map(p=>p[3]).filter(v=>v>0).sort((a,b)=>a-b),ymax=niceMax(Math.max(fs.length?fs[Math.floor(fs.length*.97)]*1.25:1,.01));
+ const X=l=>L+W*((l-.72)/(5.05-.72)),Y=v=>T+Hh*(1-clamp(v/ymax,0,1.02));
+ x.clearRect(0,0,w,h);x.font="11px ui-monospace,Menlo,monospace";
+ for(const[a,b,d]of BANDS){x.fillStyle="rgba("+BANDC[d]+",.07)";x.fillRect(X(a),T,X(b)-X(a),Hh);x.fillStyle="rgba("+BANDC[d]+",.85)";x.textAlign="center";x.fillText("Д"+d,(X(a)+X(b))/2,12)}
+ x.strokeStyle="rgba(140,170,255,.12)";x.fillStyle="#8b94a9";x.lineWidth=1;
+ for(let i=0;i<=4;i++){const y=T+Hh*(1-i/4);x.beginPath();x.moveTo(L,y+.5);x.lineTo(w-Rr,y+.5);x.stroke();x.textAlign="right";x.fillText(fmtF(ymax*i/4),L-6,y+4)}
+ x.textAlign="center";[1,2,3,4,5].forEach(l=>x.fillText(l+"",X(l),h-B+16));x.fillText("длина волны, мкм",L+W/2,h-4);
+ x.save();x.translate(12,T+Hh/2);x.rotate(-Math.PI/2);x.fillText("поток, мЯн",0,0);x.restore();
+ x.setLineDash([3,4]);x.font="10.5px ui-monospace,Menlo,monospace";
+ for(const[l,n,row]of FEAT){x.strokeStyle="rgba(255,180,84,.35)";x.beginPath();x.moveTo(X(l)+.5,T);x.lineTo(X(l)+.5,T+Hh);x.stroke();x.fillStyle="rgba(255,196,120,.95)";x.fillText(n,X(l),row?36:25)}
+ x.setLineDash([]);
+ for(const pass of[0,1])for(const p of SPEC){const c2=one||p[0]==S.e;if(c2!=(pass==1))continue;p._x=X(p[2]);p._y=Y(p[3]);x.beginPath();x.arc(p._x,p._y,c2?2.6:1.8,0,7);
+  const col=c2?"rgba(124,196,255,.85)":"rgba(120,130,160,.45)";if(p[5]){x.strokeStyle=col;x.lineWidth=1.3;x.stroke()}else{x.fillStyle=col;x.fill()}}
+ const bs=binSpec(use);
+ for(const sg of segs(bs)){x.fillStyle="rgba(255,180,84,.16)";x.beginPath();sg.forEach((b,i)=>i?x.lineTo(X(b.l),Y(b.hi)):x.moveTo(X(b.l),Y(b.hi)));for(let i=sg.length-1;i>=0;i--)x.lineTo(X(sg[i].l),Y(sg[i].lo));x.closePath();x.fill();
+  x.strokeStyle="#ffb454";x.lineWidth=2.4;x.lineJoin="round";x.beginPath();sg.forEach((b,i)=>i?x.lineTo(X(b.l),Y(b.m)):x.moveTo(X(b.l),Y(b.m)));x.stroke()}
+ S.specBins=bs;
+ $("sph").textContent="Спектр выбранного объекта";
+ const peak=bs.length?bs.reduce((a,b)=>b.m>a.m?b:a):null;
+ $("sps").innerHTML=(sp.kind=="full"?"Точки — отдельные снимки ("+SPEC.length+"), каждый поймал объект на своей длине волны. ":"Грубая оценка по сложенным кадрам. ")+
+  "<b>Оранжевая линия</b> — сглаженный спектр, полоса вокруг — разброс. Пунктир — где поглощают молекулы: если линия там проседает, молекула есть в атмосфере."+(S.pre&&S.pre.k=="wise0855"&&S.nearC?" Важно: на волнах короче 4 мкм в апертуру попадает соседняя звезда, сам WISE 0855 виден только справа, на 4,4–5 мкм.":peak?" Ярче всего объект на <b>"+num(peak.l,2)+" мкм</b>.":"")+(SPEC.some(p=>p[5])?" Полые кружки — снимки, где ядро звезды могло насытиться.":"");
+ $("spl").innerHTML="<span><i style='background:#7cc4ff'></i>"+(one?"все проходы":"проход на экране: "+fmtD(R.epochs[S.e].mjd))+"</span>"+(one?"":"<span><i style='background:#5d6684'></i>другие проходы</span>")+"<span><i style='background:#ffb454'></i>сглаженный спектр</span>"+(SPEC.some(p=>p[5])?"<span><i class='h'></i>возможно насыщение</span>":"")}
+
+/* ================= verified object passports ================= */
+const R_EARTH_KM=6371,RSUN_E=109.2,RJUP_E=11.21;   // IAU nominal radii: Sun 695 700 km, Jupiter 71 492 km
+const PASS={
+ barnard:{type:"Красный карлик, класс M4",dist:"5,96 св. года",mass:"0,16 массы Солнца",temp:"≈3 200 K",r:[["Звезда Барнарда",.187*RSUN_E]],extra:"Собственное движение 10,4″ в год, самое быстрое на небе",
+  src:[["Википедия: Barnard's Star","https://en.wikipedia.org/wiki/Barnard%27s_Star"]]},
+ epsind:{type:"Пара коричневых карликов, классы T1 и T6",dist:"12,05 св. года",mass:"67 и 53 массы Юпитера",temp:"≈1 370 K и ≈990 K",r:[["ε Инд Ba",.0805*RSUN_E],["ε Инд Bb",.0825*RSUN_E]],extra:"Обращаются друг вокруг друга за 11 лет; для SPHEREx сливаются в одну точку",
+  src:[["Википедия: Epsilon Indi","https://en.wikipedia.org/wiki/Epsilon_Indi"]]},
+ wise0855:{type:"Субкоричневый карлик, класс Y4",dist:"7,43 св. года",mass:"3–10 масс Юпитера",temp:"≈276 K (около +3 °C)",r:[["WISE 0855",1.045*RJUP_E]],extra:"Самый холодный известный коричневый карлик",
+  src:[["Википедия: WISE 0855−0714","https://en.wikipedia.org/wiki/WISE_0855%E2%88%920714"]]},
+ rwaur:{type:"Молодая двойная звезда типа T Тельца",dist:"≈510 св. лет (Gaia DR3)",mass:"1,34 массы Солнца (компонент A)",temp:"≈5 080 K",r:[["RW Возничего A",1.6*RSUN_E]],extra:"Возраст около 3 млн лет; яркость меняется из-за пылевого диска",
+  src:[["Википедия: RW Aurigae","https://en.wikipedia.org/wiki/RW_Aurigae"],["Rodriguez и др. 2013, радиус 1,6 R☉","https://arxiv.org/abs/1308.2017"]]},
+ rdra:{type:"Мирида, пульсирующий красный гигант",dist:"≈2 160 св. лет (662 пк, Gaia DR2)",mass:"нет надёжной оценки",temp:"нет надёжной оценки",r:[],extra:"Период пульсаций 246 дней; блеск меняется от 6,7 до 13,2 зв. величины",
+  src:[["Википедия: Mira variable (таблица)","https://en.wikipedia.org/wiki/Mira_variable"]]}};
+function renderPassport(pre){const el=$("passport");if(!el)return;const p=pre&&PASS[pre.k];
+ if(!p){el.innerHTML='<h3>Паспорт объекта</h3><p class="sub">Для произвольного участка неба паспорта нет: выберите одну из пяти целей или откройте участок в SIMBAD/Aladin.</p>';return}
+ const rows=[["Тип",p.type],["Расстояние",p.dist],["Масса",p.mass],["Температура",p.temp]];
+ const rr=p.r.map(([n,re])=>`<li><b>${n}</b>: ${num(re,1)} радиуса Земли (${Math.round(re*R_EARTH_KM).toLocaleString("ru-RU")} км)</li>`).join("");
+ el.innerHTML=`<h3>Паспорт объекта</h3><dl class="kv">${rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join("")}</dl>
+  <p class="pext">${p.extra}</p>
+  <div class="size"><canvas id="sizecv"></canvas></div>
+  ${rr?`<ul class="sizes">${rr}</ul>`:'<p class="sub">Радиус R Дракона в открытых проверенных источниках не измерен, поэтому сравнение с Землёй не показываем.</p>'}
+  <p class="src">Источники: ${p.src.map(s=>`<a href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a>`).join(" · ")}. Радиус Земли 6 371 км.</p>`;
+ drawSize(p)}
+function drawSize(p){const cv=$("sizecv");if(!cv)return;const[x,w,h]=setup(cv);x.clearRect(0,0,w,h);
+ const items=[["Земля",1,"#4f9dff"]].concat(p.r.map(([n,r],i)=>[n,r,i?"#c98b5a":"#ff8a5c"]));
+ if(items.length==1){x.fillStyle="#97a3c0";x.font="13px Inter,sans-serif";x.textAlign="center";x.fillText("нет проверенного радиуса",w/2,h/2);return}
+ const maxR=Math.max(...items.map(i=>i[1])),avail=h-34,sc=Math.min(avail/2/maxR,(w-40)/(2*items.reduce((s,i)=>s+i[1],0)+items.length*.2*maxR));
+ let cx=20;x.font="12px Inter,sans-serif";x.textAlign="center";
+ for(const[n,r,c]of items){const rad=Math.max(1.5,r*sc),xx=cx+rad,yy=avail-rad+6;const g=x.createRadialGradient(xx-rad*.35,yy-rad*.35,rad*.1,xx,yy,rad);
+  g.addColorStop(0,"#fff");g.addColorStop(.25,c);g.addColorStop(1,"rgba(0,0,0,.85)");x.fillStyle=g;x.beginPath();x.arc(xx,yy,rad,0,7);x.fill();
+  x.fillStyle="#cfd6e8";x.fillText(n,xx,h-8);if(rad<6){x.strokeStyle="rgba(255,255,255,.4)";x.beginPath();x.moveTo(xx,yy-rad-3);x.lineTo(xx,yy-16);x.stroke()}
+  cx=xx+rad+Math.max(18,.2*maxR*sc)}}
+
+/* ================= facts ticker (each fact has a source) ================= */
+const FACTS=[
+ ["SPHEREx запущен 11 марта 2025 года ракетой Falcon 9 с базы Ванденберг","NASA JPL","https://www.jpl.nasa.gov/missions/spherex/"],
+ ["Снимает небо в 102 инфракрасных цветах, от 0,75 до 5 мкм","NASA","https://www.jpl.nasa.gov/missions/spherex/"],
+ ["За 2 года миссии — 4 полные карты всего неба","NASA JPL","https://www.jpl.nasa.gov/news/cosmic-mapmaker-nasas-spherex-space-telescope-ready-to-launch/"],
+ ["Цель: более 450 млн галактик и более 100 млн звёзд Млечного Пути","NASA JPL","https://www.jpl.nasa.gov/missions/spherex/"],
+ ["Орбита около 650 км, стоимость миссии 488 млн долларов","Physics World","https://physicsworld.com/?p=120048"],
+ ["Один снимок SPHEREx содержит около 100 000 источников света","NASA","https://www.nasa.gov/?p=842945"],
+ ["Пиксель SPHEREx — 6,2 угловой секунды","SPHEREx, arXiv:2404.11017","https://arxiv.org/abs/2404.11017"],
+ ["Звезда Барнарда: 5,96 св. года и 10,4″ в год — самая быстрая звезда на небе","Википедия","https://en.wikipedia.org/wiki/Barnard%27s_Star"],
+ ["Около 11 800 года Звезда Барнарда подойдёт к Солнцу на 3,75 св. года","Википедия","https://en.wikipedia.org/wiki/Barnard%27s_Star"],
+ ["WISE 0855: около +3 °C, самый холодный известный коричневый карлик, 7,43 св. года","Википедия","https://en.wikipedia.org/wiki/WISE_0855%E2%88%920714"],
+ ["ε Индейца Ba и Bb весят 67 и 53 массы Юпитера и обходят друг друга за 11 лет","Википедия","https://en.wikipedia.org/wiki/Epsilon_Indi"],
+ ["R Дракона меняет блеск от 6,7 до 13,2 величины за 246 дней","Википедия","https://en.wikipedia.org/wiki/Mira_variable"],
+ ["RW Возничего — молодая звезда, около 3 млн лет, с пылевым диском","Википедия","https://en.wikipedia.org/wiki/RW_Aurigae"]];
+function initTicker(){const el=$("tickTrack");if(!el)return;const html=FACTS.map(f=>`<a href="${f[2]}" target="_blank" rel="noopener"><b>✦</b>${f[0]}<span>${f[1]}</span></a>`).join("");el.innerHTML=html+html}
+function tickerOwn(total){const el=$("tickTrack");if(!el||!total)return;const f=`<a href="#results"><b>✦</b>Наш сайт обработал ${total.toLocaleString("ru-RU")} настоящих снимков SPHEREx для пяти целей задания<span>SPHEREx Blink</span></a>`;
+ const half=el.innerHTML.length/2;el.innerHTML=f+el.innerHTML.slice(0,half)+f+el.innerHTML.slice(half)}
+
+/* ================= 3D 360° view ================= */
+const V3={on:false,ready:false};
+addEventListener("spx3d-ready",()=>{V3.ready=true;if(V3.on)set3D(true)});
+function set3D(on){V3.on=on;$("b2d").classList.toggle("on",!on);$("b3d").classList.toggle("on",on);$("v3d").classList.toggle("on",on);
+ if(on){if(!V3.ready||!window.SPX3D){$("v3dmsg").textContent="Загружаю 3D…";return}$("v3dmsg").textContent="";SPX3D.start($("v3d"));frame()}else if(window.SPX3D)SPX3D.stop()}
+function push3d(a,st){if(!V3.on||!V3.ready||!window.SPX3D)return;const R=S.R,N=R.N,M=Math.asinh(st.hi/st.s),v=new Float32Array(N*N),diff=S.mode=="diff";
+ for(let i=0;i<v.length;i++){const d=a[i];v[i]=diff?Math.sign(d)*Math.min(1,Math.asinh(Math.abs(d)/st.s)/M):clamp(Math.asinh(Math.max(0,d+st.noise)/st.s)/M,0,1)}
+ let mark=null,mh=0;if(S.sel){const[E,No]=posAt(S.e),ix=(N/2-E/R.scale)/N,iy=(N/2-No/R.scale)/N;if(ix>0&&ix<1&&iy>0&&iy<1){mark=[ix,iy];mh=v[Math.floor(iy*N)*N+Math.floor(ix*N)]||0}}
+ SPX3D.update(v,N,{diff,tint:S.det?TINT[S.det]:NEUTRAL,mark,markH:diff?0:mh})}
+
+/* ================= AI assistant (double-click anything) ================= */
+let AI=null;
+(async()=>{try{if(window.claude&&typeof claude.use=="function"){AI=await claude.use("sample")}}catch(e){AI=null}
+ const b=$("aiMode");if(b)b.textContent=AI?"ИИ Claude":"справка"})();
+const HELP=[
+ ["#cv,.view,#v3d","снимок SPHEREx","Это настоящий снимок SPHEREx: сложены несколько снимков одного детектора за один проход телескопа. Яркие пятна — звёзды и галактики. Нажмите на пятно, чтобы измерить его."],
+ ["#det","выбор детектора","У SPHEREx шесть детекторов, каждый видит свой диапазон длин волн. Детекторы 1–3 — ближний инфракрасный, 4–6 — до 5 мкм, где ярче всего холодные коричневые карлики."],
+ ["#mode","режим показа","Мигание листает проходы телескопа. Разность вычитает первый проход: неподвижное исчезает, движущийся объект оставляет голубое и янтарное пятно. Сумма складывает все проходы и снижает шум."],
+ ["#play,#ep,.play","проходы телескопа","SPHEREx снимает каждую точку неба примерно раз в полгода. Ползунок переключает эти проходы, кнопка запускает их как видео."],
+ ["#auto,#autoPanel,#cands","автопоиск","Сайт находит все яркие источники, следит за ними от прохода к проходу, вычитает общий сдвиг поля и показывает те, что сдвинулись сильнее шума. Найденное сверяется с каталогом Gaia."],
+ ["#sp,#sph,#sps,#spl","спектр","Спектр показывает, насколько ярок объект на каждой длине волны. Провалы на пунктирных линиях говорят о молекулах: вода, метан, угарный и углекислый газ."],
+ ["#lc,#lch,#lcs","график яркости","График показывает яркость объекта в каждом проходе телескопа. Переменные звёзды меняют яркость, обычные остаются ровными."],
+ ["#ovg,#ovw","каталоги","Голубые кружки — звёзды из каталога Gaia DR3, пересчитанные на дату снимка с учётом их движения. Сиреневые квадраты — каталог AllWISE (снимки 2010 года)."],
+ ["#markBtn,#marks","метки","Можно обвести любой объект и подписать его. Сайт сам посчитает его координаты."],
+ ["#form,#ra,#dec","координаты","Прямое восхождение и склонение — это «долгота» и «широта» на небе. Введите их в градусах или в часах и градусах."],
+ ["#passport","паспорт объекта","Здесь собраны проверенные данные об объекте из открытых источников: расстояние, масса, температура и размер в сравнении с Землёй."],
+ [".rcard,#results","результаты","Эти числа сайт измерил сам по снимкам SPHEREx и сверил с каталогами."],
+ ["#ticker","лента фактов","Каждый факт в ленте взят из открытого источника, название источника написано справа от факта."],
+ [".chap,#story,.hero","рассказ о проекте","Эта часть показывает на настоящих снимках, как работает поиск движения."]];
+function helpFor(el){for(const[sel,name,txt]of HELP){const m=el.closest(sel);if(m)return{name,txt}}const t=(el.closest("button,label,h2,h3,a")||el).textContent.trim().replace(/\s+/g," ").slice(0,60);return{name:t?"«"+t+"»":"страница",txt:"Это часть сайта SPHEREx Blink — инструмента для поиска движущихся объектов на снимках NASA SPHEREx."}}
+function pageState(){const R=S.R;if(!R)return{};const p=S.pre&&PASS[S.pre.k];
+ return{цель:S.pre?S.pre.n:"участок RA "+R.ra.toFixed(4)+", Dec "+R.dec.toFixed(4),детектор:S.det?("№"+S.det+", "+DETN[S.det]+" мкм"):"все",режим:{blink:"мигание",diff:"разность",sum:"сумма"}[S.mode],
+  проход:fmtD(R.epochs[S.e].mjd)+" ("+(S.e+1)+" из "+R.epochs.length+")",измерение:$("move").textContent,паспорт:p?{тип:p.type,расстояние:p.dist,масса:p.mass,температура:p.temp,радиусы_в_радиусах_Земли:p.r.map(r=>r[0]+": "+r[1].toFixed(1)),факт:p.extra}:null,
+  спектр:(S.specBins||[]).filter((_,i)=>i%3==0).map(b=>b.l.toFixed(2)+" мкм: "+b.m.toFixed(2)+" мЯн"),
+  автопоиск:X.cands?X.cands.map(c=>num(c.v)+"″/год на "+dirName(c.vE,c.vN)):"не запускался",яркость_по_проходам:LC.map(q=>fmtD(q.mjd)+": "+fmtF(q.f)+" мЯн")}}
+let aiEl=null,aiCtl=null;
+function aiOpen(target,cx,cy){const h=helpFor(target);aiEl={target,h};const box=$("ai");$("aiCtx").textContent="Вы выбрали: "+h.name;$("aiAns").innerHTML="";$("aiQ").value="";
+ box.classList.add("on");const bw=Math.min(380,innerWidth-24),bh=box.offsetHeight||260;box.style.width=bw+"px";
+ box.style.left=clamp(cx+14,12,innerWidth-bw-12)+"px";box.style.top=clamp(cy+14,12,innerHeight-bh-12)+"px";setTimeout(()=>$("aiQ").focus(),30)}
+function aiClose(){$("ai").classList.remove("on");if(aiCtl)aiCtl.abort()}
+async function aiAsk(){const q=$("aiQ").value.trim()||"Что это и зачем это нужно?",ans=$("aiAns"),h=aiEl?aiEl.h:{name:"страница",txt:""};
+ ans.innerHTML='<p class="aiq">'+q.replace(/</g,"&lt;")+"</p><p class='aia'>…</p>";const out=ans.querySelector(".aia");
+ if(AI){if(aiCtl)aiCtl.abort();aiCtl=new AbortController();
+  const prompt="Ты помощник сайта SPHEREx Blink: это инструмент для школьников и новичков, который показывает настоящие снимки телескопа NASA SPHEREx и помогает искать движущиеся объекты. "+
+   "Отвечай по-русски, 2–5 коротких предложений, простыми словами, без markdown и без списков. Опирайся на данные страницы ниже. Числа бери только из этих данных или из общеизвестных фактов; если не уверен, так и скажи. "+
+   "\n\nЭлемент, на который нажал пользователь: "+h.name+". Что он делает: "+h.txt+"\n\nТекущее состояние страницы (JSON): "+JSON.stringify(pageState())+"\n\nВопрос пользователя: "+q;
+  try{const r=await AI(prompt,{signal:aiCtl.signal,cache:false,modelTier:"quick",onText:({text})=>{out.textContent=text}});out.textContent=r.text}
+  catch(e){if(e&&e.name=="AbortError")return;out.textContent=e&&e.code=="not_granted"?"Доступ к ИИ не разрешён. "+h.txt:"ИИ сейчас недоступен. "+h.txt}}
+ else out.innerHTML=h.txt+aiLocal(q)+'<small class="ainote">Это встроенная справка. Ответы ИИ Claude работают в версии сайта на claude.ai.</small>'}
+function aiLocal(q){const st=pageState(),t=q.toLowerCase();let s="";
+ if(/движ|скорост|сдвиг/.test(t)&&st.измерение)s=" Сейчас для выбранного объекта: "+st.измерение;
+ else if(/размер|земл|радиус|больш|мал/.test(t)&&st.паспорт)s=" "+(st.паспорт.радиусы_в_радиусах_Земли.length?"Радиус: "+st.паспорт.радиусы_в_радиусах_Земли.join(", ")+" радиуса Земли.":"Проверенного радиуса нет.");
+ else if(/далек|расстоя/.test(t)&&st.паспорт)s=" Расстояние: "+st.паспорт.расстояние+".";
+ else if(/темпер|холод|горяч/.test(t)&&st.паспорт)s=" Температура: "+st.паспорт.температура+".";
+ else if(/спектр|молекул|вод|метан/.test(t)&&S.specBins&&S.specBins.length){const pk=S.specBins.reduce((a,b)=>b.m>a.m?b:a);s=" Ярче всего объект на "+num(pk.l,2)+" мкм."}
+ return s?"<br><br>"+s.trim():""}
+function initAI(){document.addEventListener("dblclick",e=>{const t=e.target;if(t.closest("#ai,input,textarea,select,.tour,#v3d"))return;try{getSelection().removeAllRanges()}catch(_){}
+  aiOpen(t,e.clientX,e.clientY)});
+ $("aiX").onclick=aiClose;$("aiGo").onclick=aiAsk;$("aiQ").addEventListener("keydown",e=>{if(e.key=="Enter")aiAsk();if(e.key=="Escape")aiClose()});
+ $("aiFab").onclick=e=>aiOpen(document.querySelector(".view")||document.body,innerWidth-420,innerHeight-360);
+ $("b2d").onclick=()=>set3D(false);$("b3d").onclick=()=>set3D(true);addEventListener("resize",()=>{if(V3.on&&window.SPX3D)SPX3D.size()});initTicker()}
 
 /* ---------- rebuild the saved targets: open ?build=1 while server.py is running ---------- */
 async function buildAll(){for(const p of P){try{const R=await SPX.process(p.ra,p.dec,6,(d,t)=>busy("Обновляю «"+p.n+"»: "+d+" из "+t,"Пересборка сохранённых данных из IRSA. Не закрывайте вкладку.",d/t),null,p.follow?{det:p.follow,pm:p.pm}:null);
@@ -460,7 +602,7 @@ async function buildAll(){for(const p of P){try{const R=await SPX.process(p.ra,p
  if(qs.get("embed"))document.body.classList.add("embed");
  const hasQ=qs.get("ra")!=null&&qs.get("dec")!=null;
  if(qs.get("det")!=null)S.det=+qs.get("det")||0;ds.value=S.det;if(qs.get("mode"))S.mode=qs.get("mode");$("mode").value=S.mode;if(qs.get("fov")){$("fov").value=qs.get("fov");$("fovv").textContent=$("fov").value+"′"}
- timer();initFeatures();
+ timer();initFeatures();initAI();
  if(qs.get("build")){document.body.classList.add("nostory");buildAll();return}
  if(!qs.get("embed"))initVisuals();
  if(hasQ){const ra=parseC(qs.get("ra"),false),dec=parseC(qs.get("dec"),false);if(!isNaN(ra)&&!isNaN(dec)){if(location.hash=="#tool")$("tool").scrollIntoView();await go(ra,dec);if(S.mode=="diff"&&S.R&&S.R.epochs.length>1){S.e=S.R.epochs.length-1;frame()}return}}

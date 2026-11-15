@@ -13,6 +13,8 @@
 </head>
 <body>
 
+<div class="ticker" id="ticker"><div class="tick-label">Факты<i></i></div><div class="tick-win"><div class="tick-track" id="tickTrack"></div></div></div>
+
 <header class="nav">
  <a class="brand" href="#top"><span class="mark"></span>SPHEREx <b>Blink</b></a>
  <nav class="pill" aria-label="Разделы">
@@ -108,13 +110,15 @@
  <div class="sec-h rv">
   <div class="eyebrow">Инструмент</div>
   <h2>Любой участок неба</h2>
-  <button class="btn ghost sm guide" id="guideBtn" type="button">Гид для новичков</button>
+  <div class="tool-acts"><button class="btn ghost sm guide" id="guideBtn" type="button">Гид для новичков</button><span class="aihint"><b>✦</b> Дважды нажмите на любой элемент, и ИИ-помощник объяснит его</span></div>
   <p>Введите координаты. Сайт найдёт все снимки SPHEREx этой точки, совместит их и покажет по проходам телескопа. Нажмите на любой объект, чтобы измерить его сдвиг, спектр и яркость.</p>
  </div>
  <div class="wrap">
   <div class="col">
    <div class="view glass">
     <canvas id="cv" width="702" height="702"></canvas>
+    <div class="v3d" id="v3d"><span id="v3dmsg"></span><small class="v3dh">Тяните мышью, чтобы повернуть · двойной клик останавливает вращение</small></div>
+    <div class="vtog"><button id="b2d" class="on" type="button">2D</button><button id="b3d" type="button">3D 360°</button></div>
     <div class="hud" id="hud"></div>
     <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
     <div class="load" id="load"><div id="lmsg">Загрузка…</div><div class="pb"><i id="lbar"></i></div><small id="lsub"></small></div>
@@ -160,6 +164,7 @@
      <label>Скорость: <span id="fpsv"></span><input type="range" id="fps" min="1" max="6" value="2"></label>
     </div>
    </div>
+   <div class="panel glass" id="passport"></div>
    <div class="panel glass">
     <p class="note" id="note"></p>
     <p class="move" id="move"></p>
@@ -202,6 +207,16 @@
  </div>
 </div>
 
+<button class="aifab" id="aiFab" type="button"><b>✦</b> Спросить ИИ</button>
+<div class="ai glass" id="ai" role="dialog" aria-label="ИИ-помощник">
+ <div class="ai-h"><span><b>✦</b> Помощник · <em id="aiMode">справка</em></span><button id="aiX" type="button" aria-label="Закрыть">×</button></div>
+ <div class="ai-ctx" id="aiCtx"></div>
+ <p class="ai-t">Что вас интересует?</p>
+ <div class="ai-in"><input id="aiQ" type="text" placeholder="Например: почему эта звезда движется?" autocomplete="off"><button class="btn pri sm" id="aiGo" type="button">Спросить</button></div>
+ <div class="ai-ans" id="aiAns"></div>
+</div>
+
+<script type="module" src="view3d.js"></script>
 <script src="vendor/lenis.min.js"></script>
 <script src="spx.js"></script>
 <script src="app.js"></script>
